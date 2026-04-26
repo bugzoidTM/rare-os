@@ -1,4 +1,4 @@
-#!/bin/ash
+#!/bin/busybox sh
 # RARE-OS Init Script
 # O primeiro processo (PID 1) após o kernel carregar.
 

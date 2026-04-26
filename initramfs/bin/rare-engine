@@ -1,4 +1,4 @@
-#!/bin/ash
+#!/bin/busybox sh
 echo "==================================================="
 echo "  🧠 [RARE-ENGINE MOCK] Olá do Rare OS! "
 echo "  O Kernel e o Initramfs estão se comunicando perfeitamente!"
