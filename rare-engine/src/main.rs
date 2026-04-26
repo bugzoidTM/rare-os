@@ -164,8 +164,15 @@ fn forward(
         }
 
         let repeat = N_HEADS / N_KV_HEADS;
-        let k = k.repeat((1, repeat, 1, 1))?;
-        let v = v.repeat((1, repeat, 1, 1))?;
+        let repeat_kv = |t: &Tensor| -> Result<Tensor> {
+            let (_, _, s, d) = t.dims4()?;
+            t.unsqueeze(2)?
+             .broadcast_as((1, N_KV_HEADS, repeat, s, d))?
+             .reshape((1, N_HEADS, s, d))
+        };
+        
+        let k = repeat_kv(&k)?;
+        let v = repeat_kv(&v)?;
 
         let scale = (HEAD_DIM as f64).sqrt();
         let mut attn = (q.matmul(&k.transpose(2, 3)?)? / scale)?;
