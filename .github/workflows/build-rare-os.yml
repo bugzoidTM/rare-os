@@ -1,0 +1,91 @@
+name: RARE-OS Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cpio qemu-system-x86 musl-tools git
+
+      - name: Setup Rust Toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source $HOME/.cargo/env
+          rustup target add x86_64-unknown-linux-musl
+
+      - name: Compile RARE Engine (Rust)
+        run: |
+          source $HOME/.cargo/env
+          cd rare-engine
+          RUSTFLAGS="-C target-cpu=x86-64 -C target-feature=-avx,-avx2" cargo build --release --target x86_64-unknown-linux-musl
+          # Copia o binário para a pasta do initramfs
+          cp target/x86_64-unknown-linux-musl/release/rare-engine ../initramfs/bin/rare-engine
+
+      - name: Verify Binary
+        run: |
+          file initramfs/bin/rare-engine
+          ldd initramfs/bin/rare-engine || echo "Static binary confirmed (ldd error expected)"
+
+      - name: Pack Initramfs
+        run: |
+          cd initramfs
+          # Garante permissões de execução
+          chmod +x init
+          chmod +x bin/rare-engine
+          chmod +x bin/busybox
+          # Empacota
+          find . | cpio -o -H newc | gzip > ../initramfs.cpio.gz
+          cd ..
+          ls -lh initramfs.cpio.gz
+
+      - name: Prepare ISO Structure
+        run: |
+          mkdir -p iso_root/boot/grub
+          cp kernel/bzImage iso_root/boot/vmlinuz
+          cp initramfs.cpio.gz iso_root/boot/
+          
+          # Cria config do GRUB
+          cat > iso_root/boot/grub/grub.cfg << 'EOF'
+          set timeout=5
+          menuentry "RARE-OS" {
+            linux /boot/vmlinuz quiet console=tty0
+            initrd /boot/initramfs.cpio.gz
+          }
+          EOF
+
+      - name: Install GRUB
+        run: |
+          sudo apt-get install -y grub-pc-bin xorriso mtools
+          grub-mkrescue -o rare-os.iso iso_root/
+          ls -lh rare-os.iso
+
+      - name: Boot Test (QEMU)
+        run: |
+          # Roda o QEMU em background, captura a saída e mata após 20s
+          timeout 20 qemu-system-x86_64 -m 1G -kernel iso_root/boot/vmlinuz -initrd iso_root/boot/initramfs.cpio.gz -nographic -append "console=ttyS0" > qemu_output.log 2>&1 || true
+          echo "--- QEMU LOG ---"
+          cat qemu_output.log
+          
+          # Validação simples
+          if grep -q "RARE-OS" qemu_output.log; then
+            echo "✅ SUCCESS: RARE-OS booted!"
+          else
+            echo "❌ FAIL: Boot string not found."
+            exit 1
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: rare-os-image
+          path: rare-os.iso

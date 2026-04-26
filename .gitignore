@@ -1,0 +1,39 @@
+# Arquivos de objetos e binários C/C++
+*.o
+*.a
+*.so
+*.elf
+*.bin
+
+# Imagens de disco, Kernel e ISO
+*.iso
+*.img
+*.qcow2
+*.vdi
+*.raw
+*.cpio
+*.cpio.gz
+bzImage
+vmlinux
+System.map
+
+# Diretórios gerais de compilação e artefatos de saída
+build/
+out/
+dist/
+
+# Rust / Cargo (rare-engine)
+rare-engine/target/
+rare-engine/**/*.rs.bk
+
+# Arquivos de log e temporários do sistema
+*.log
+*.tmp
+*.bak
+*~
+
+# IDEs e configurações do sistema operacional
+.DS_Store
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,16 @@
+[package]
+name = "rare-engine"
+version = "0.1.0"
+edition = "2021"
+description = "RARE OS Core Engine"
+
+[dependencies]
+# Dependências do Qwen ou inferência poderão ser adicionadas aqui
+# Para fins de demonstração inicial:
+tokio = { version = "1.34", features = ["full"] }
+
+[profile.release]
+opt-level = "z"  # Otimiza para o menor tamanho de binário possível
+lto = true       # Link Time Optimization (reduz o binário e otimiza velocidade)
+codegen-units = 1 # Melhor otimização ao custo de tempo de compilação
+panic = "abort"   # Remove overhead de stack trace
