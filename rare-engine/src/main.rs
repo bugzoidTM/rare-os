@@ -166,9 +166,9 @@ fn forward(
         let repeat = N_HEADS / N_KV_HEADS;
         let repeat_kv = |t: &Tensor| -> Result<Tensor> {
             let (_, _, s, d) = t.dims4()?;
-            t.unsqueeze(2)?
+            Ok(t.unsqueeze(2)?
              .broadcast_as((1, N_KV_HEADS, repeat, s, d))?
-             .reshape((1, N_HEADS, s, d))
+             .reshape((1, N_HEADS, s, d))?)
         };
         
         let k = repeat_kv(&k)?;
