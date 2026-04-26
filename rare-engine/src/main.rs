@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use candle_core::{DType, Device, IndexOp, Tensor};
+use candle_core::{DType, Device, IndexOp, Module, Tensor};
 use candle_core::quantized::{gguf_file, QMatMul};
 use clap::Parser;
 use std::io::Write;
