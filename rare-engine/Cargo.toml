@@ -2,28 +2,11 @@
 name = "rare-engine"
 version = "0.1.0"
 edition = "2021"
-description = "RARE OS Core Engine - Minimal GGUF Loader"
 
 [dependencies]
-# Core do Candle para tensores e inferência CPU
-candle-core = "0.6.0"
-candle-nn = "0.6.0"
-
-# Suporte a formato GGUF (quantização)
-gguf = "0.1.0"
-
-# Tokenização
-tokenizers = "0.15.0"
-
-# CLI e utilitários
-clap = { version = "4.4", features = ["derive"] }
+candle-core = { version = "0.6.0", default-features = false }
 anyhow = "1.0"
-
-# Async mínimo (futuro)
-tokio = { version = "1.34", features = ["rt"] }
-
-# REMOVIDO: candle-transformers, candle-examples, mkl
-# Motivo: APIs instáveis + linking complexo com musl
+clap = { version = "4.4", features = ["derive"] }
 
 [profile.release]
 opt-level = "z"
