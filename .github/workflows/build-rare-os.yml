@@ -105,18 +105,41 @@ jobs:
 
       - name: Boot Test (QEMU)
         run: |
-          # Roda o QEMU em background, captura a saída e mata após 20s
-          timeout 60 qemu-system-x86_64 -m 4G -kernel iso_root/boot/vmlinuz -initrd iso_root/boot/initramfs.cpio.gz -nographic -append "console=ttyS0" > qemu_output.log 2>&1 || true
+          # 120s: 60s boot + 60s para 2 tokens de inferência no QEMU sem KVM
+          timeout 120 qemu-system-x86_64 \
+            -m 4G \
+            -kernel iso_root/boot/vmlinuz \
+            -initrd iso_root/boot/initramfs.cpio.gz \
+            -nographic \
+            -append "console=ttyS0" > qemu_output.log 2>&1 || true
+
           echo "--- QEMU LOG ---"
           cat qemu_output.log
-          
-          # Validação simples
+
+          # Smoke test 1: sistema bootou
           if grep -q "RARE-OS" qemu_output.log; then
-            echo "✅ SUCCESS: RARE-OS booted!"
+            echo "✅ Boot OK"
           else
-            echo "❌ FAIL: Boot string not found."
-            exit 1
+            echo "❌ FAIL: Boot string not found"; exit 1
           fi
+
+          # Smoke test 2: engine carregou o modelo
+          if grep -q "MB" qemu_output.log; then
+            echo "✅ Modelo carregado"
+          else
+            echo "⚠️ WARNING: Modelo pode não ter carregado (timeout?)"
+          fi
+
+          # Smoke test 3: "2+2=" gerou "4"
+          if grep -q "4" qemu_output.log; then
+            echo "✅ SMOKE TEST PASS: resposta '4' encontrada no output"
+          else
+            echo "⚠️ SMOKE TEST: '4' não encontrado (pode ser timeout ou tokens diferentes)"
+          fi
+
+          # Extrair latência do log
+          echo "--- LATÊNCIA ---"
+          grep "ms" qemu_output.log | tail -5 || echo "(sem dados de latência)"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

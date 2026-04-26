@@ -34,4 +34,8 @@ fi
 echo "🧠 [RARE-OS] Iniciando RARE Engine (Qwen2.5-1.5B)..."
 echo "==================================================="
 # O 'exec' substitui o processo shell pelo engine, economizando memória
-exec /bin/rare-engine --model /models/qwen2.5-1.5b-q4_k_m.gguf --prompt "Olá, RARE-OS."
+exec /bin/rare-engine \
+  --model /models/qwen2.5-1.5b-q4_k_m.gguf \
+  --tokenizer /tokenizer.json \
+  --prompt "2+2=" \
+  --max-tokens 2

@@ -2,15 +2,14 @@
 name = "rare-engine"
 version = "0.1.0"
 edition = "2021"
-description = "RARE OS Core Engine - GGUF Loader via Candle"
+description = "RARE OS Core Engine - Qwen2.5-1.5B Forward Pass"
 
 [dependencies]
-# candle-core 0.10.x usa rand 0.9.x nativamente, corrigindo o conflito 0.8/0.9
 candle-core = { version = "0.10.2", default-features = false }
-
-# Utilitários
 anyhow = "1.0"
 clap = { version = "4.4", features = ["derive"] }
+# tokenizers sem onig para evitar deps C no musl
+tokenizers = { version = "0.21", default-features = false }
 
 [profile.release]
 opt-level = "z"
