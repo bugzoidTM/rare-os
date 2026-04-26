@@ -239,15 +239,8 @@ fn main() -> Result<()> {
         .map_err(|e| anyhow::anyhow!("{}", e))
         .context("Tokenizer não encontrado")?;
 
-    // Formatar prompt para Qwen2.5-Instruct
-    let formatted_prompt = if args.prompt.contains("<|im_start|>") {
-        args.prompt.clone()
-    } else {
-        format!(
-            "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
-            args.prompt
-        )
-    };
+    // Formato de prompt opcional (se o usuário não passar as tags, mantemos puro para evitar prompts gigantes no QEMU)
+    let formatted_prompt = args.prompt.clone();
 
     let encoded = tokenizer.encode(formatted_prompt.clone(), false)
         .map_err(|e| anyhow::anyhow!("{}", e))?;

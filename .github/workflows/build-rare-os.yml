@@ -105,8 +105,8 @@ jobs:
 
       - name: Boot Test (QEMU)
         run: |
-          # 600s timeout: QEMU emulator sem KVM e com processamento GGUF (prompt de 12 tokens) é MUITO lento (estimado ~480s)
-          timeout 600 qemu-system-x86_64 \
+          # 900s timeout: QEMU emulator sem KVM e com processamento GGUF é MUITO lento
+          timeout 900 qemu-system-x86_64 \
             -m 4G \
             -kernel iso_root/boot/vmlinuz \
             -initrd iso_root/boot/initramfs.cpio.gz \
