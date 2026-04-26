@@ -59,6 +59,7 @@ jobs:
         run: |
           git config --global user.name "RARE-OS Bot"
           git config --global user.email "bot@rare-os.com"
+          git checkout main || git checkout -b main
           cp ../compile_error.log ./rare-engine-error.log
           git add rare-engine-error.log
           git commit -m "docs: CI compilation error log [skip ci]" || echo "No changes to commit"
