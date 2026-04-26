@@ -42,7 +42,8 @@ jobs:
         run: |
           source $HOME/.cargo/env
           cd rare-engine
-          # O linker musl-gcc agora é configurado via .cargo/config.toml
+          # musl-gcc linker configurado via .cargo/config.toml
+          # --no-default-features evita BLAS/MKL/OpenMP por redundância
           cargo build --release --target x86_64-unknown-linux-musl --no-default-features
           cp target/x86_64-unknown-linux-musl/release/rare-engine ../initramfs/bin/rare-engine
 

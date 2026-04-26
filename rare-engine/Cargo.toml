@@ -2,6 +2,20 @@
 name = "rare-engine"
 version = "0.1.0"
 edition = "2021"
+description = "RARE OS Core Engine - GGUF Loader via Candle"
 
 [dependencies]
-# Removidas para teste de isolamento
+# Candle com features mínimas para musl (sem BLAS/MKL/OpenMP)
+candle-core = { version = "0.6.0", default-features = false, features = ["cpu"] }
+candle-nn = { version = "0.6.0", default-features = false }
+
+# Utilitários
+anyhow = "1.0"
+clap = { version = "4.4", features = ["derive"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
