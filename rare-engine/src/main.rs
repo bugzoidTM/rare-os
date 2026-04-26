@@ -105,30 +105,28 @@ fn forward(
     device: &Device,
     kv_cache: &mut Vec<(Tensor, Tensor)>,
 ) -> Result<Tensor> {
-    let t = |name: &str| content.tensor(reader, name, device);
-
-    let embd = t("token_embd.weight")?.dequantize(device)?;
+    let embd = content.tensor(&mut *reader, "token_embd.weight", device)?.dequantize(device)?;
     let seq = tokens.len();
     let ids: Vec<u32> = tokens.to_vec();
     let token_tensor = Tensor::from_vec(ids, (seq,), device)?;
     let mut x = embd.index_select(&token_tensor, 0)?.unsqueeze(0)?;
 
     for layer in 0..N_LAYERS {
-        let ln = |suffix: &str| -> Result<Tensor> {
-            let w = t(&format!("blk.{}.{}", layer, suffix))?.dequantize(device)?;
-            rms_norm(&x, &w, 1e-6)
-        };
+        let ln_weight_name = format!("blk.{}.attn_norm.weight", layer);
+        let h_w = content.tensor(&mut *reader, &ln_weight_name, device)?.dequantize(device)?;
+        let h = rms_norm(&x, &h_w, 1e-6)?;
 
-        let h = ln("attn_norm.weight")?;
+        let q_name = format!("blk.{}.attn_q.weight", layer);
+        let w_q = content.tensor(&mut *reader, &q_name, device)?.dequantize(device)?.t()?;
+        let q = h.broadcast_matmul(&w_q)?;
 
-        let proj = |name: &str, x: &Tensor| -> Result<Tensor> {
-            let w = t(&format!("blk.{}.{}", layer, name))?.dequantize(device)?.t()?;
-            Ok(x.broadcast_matmul(&w)?)
-        };
+        let k_name = format!("blk.{}.attn_k.weight", layer);
+        let w_k = content.tensor(&mut *reader, &k_name, device)?.dequantize(device)?.t()?;
+        let k = h.broadcast_matmul(&w_k)?;
 
-        let q = proj("attn_q.weight", &h)?;
-        let k = proj("attn_k.weight", &h)?;
-        let v = proj("attn_v.weight", &h)?;
+        let v_name = format!("blk.{}.attn_v.weight", layer);
+        let w_v = content.tensor(&mut *reader, &v_name, device)?.dequantize(device)?.t()?;
+        let v = h.broadcast_matmul(&w_v)?;
 
         let reshape_heads = |t: &Tensor, n: usize| -> Result<Tensor> {
             let (b, s, _) = t.dims3()?;
@@ -163,24 +161,35 @@ fn forward(
         let attn = softmax(&attn, 3)?;
         let attn_out = attn.matmul(&v)?.transpose(1, 2)?.flatten_from(2)?;
 
-        let w_o = t(&format!("blk.{}.attn_output.weight", layer))?.dequantize(device)?.t()?;
+        let o_name = format!("blk.{}.attn_output.weight", layer);
+        let w_o = content.tensor(&mut *reader, &o_name, device)?.dequantize(device)?.t()?;
         x = x.broadcast_add(&attn_out.broadcast_matmul(&w_o)?)?;
 
-        let h_ffn = ln("ffn_norm.weight")?;
-        let gate = proj("ffn_gate.weight", &h_ffn)?;
-        let up   = proj("ffn_up.weight",   &h_ffn)?;
+        let ffn_norm_name = format!("blk.{}.ffn_norm.weight", layer);
+        let h_ffn_w = content.tensor(&mut *reader, &ffn_norm_name, device)?.dequantize(device)?;
+        let h_ffn = rms_norm(&x, &h_ffn_w, 1e-6)?;
+
+        let gate_name = format!("blk.{}.ffn_gate.weight", layer);
+        let w_gate = content.tensor(&mut *reader, &gate_name, device)?.dequantize(device)?.t()?;
+        let gate = h_ffn.broadcast_matmul(&w_gate)?;
+
+        let up_name = format!("blk.{}.ffn_up.weight", layer);
+        let w_up = content.tensor(&mut *reader, &up_name, device)?.dequantize(device)?.t()?;
+        let up = h_ffn.broadcast_matmul(&w_up)?;
         
         let act = silu(&gate)?.broadcast_mul(&up)?;
-        let w_d = t(&format!("blk.{}.ffn_down.weight", layer))?.dequantize(device)?.t()?;
+
+        let down_name = format!("blk.{}.ffn_down.weight", layer);
+        let w_d = content.tensor(&mut *reader, &down_name, device)?.dequantize(device)?.t()?;
         x = x.broadcast_add(&act.broadcast_matmul(&w_d)?)?;
     }
 
-    let norm_w = t("output_norm.weight")?.dequantize(device)?;
+    let norm_w = content.tensor(&mut *reader, "output_norm.weight", device)?.dequantize(device)?;
     let x = rms_norm(&x, &norm_w, 1e-6)?;
 
     let seq_len = x.dim(1)?;
     let last = x.i((0, seq_len - 1, ..))?;
-    let lm_head = t("output.weight")?.dequantize(device)?.t()?;
+    let lm_head = content.tensor(&mut *reader, "output.weight", device)?.dequantize(device)?.t()?;
     let logits = last.unsqueeze(0)?.broadcast_matmul(&lm_head)?;
     Ok(logits.i((0, ..))?)
 }
