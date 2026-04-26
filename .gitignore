@@ -5,7 +5,7 @@
 *.elf
 *.bin
 
-# Imagens de disco, Kernel e ISO
+# Imagens de disco, Kernel e ISO (exceto o bzImage necessário para build)
 *.iso
 *.img
 *.qcow2
@@ -13,7 +13,7 @@
 *.raw
 *.cpio
 *.cpio.gz
-bzImage
+# bzImage  <-- Removido daqui para permitir o push
 vmlinux
 System.map
 
