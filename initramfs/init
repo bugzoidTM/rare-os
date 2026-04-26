@@ -9,7 +9,7 @@ echo "🚀 [RARE-OS] Iniciando sistema mínimo..."
 echo "[RARE-OS] Montando filesystems virtuais..."
 
 # Criar diretórios ANTES de montar (crítico!)
-mkdir -p /proc /sys /tmp /dev/pts /run /models
+/bin/busybox mkdir -p /proc /sys /tmp /dev/pts /run /models
 
 # Montar filesystems virtuais (ignorar erros se já montados)
 /bin/busybox mount -t proc proc /proc 2>/dev/null || true
