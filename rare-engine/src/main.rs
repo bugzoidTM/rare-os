@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use candle_core::{DType, Device, IndexOp, Tensor};
-use candle_core::quantized::gguf_file;
+use candle_core::quantized::{gguf_file, QMatMul};
 use clap::Parser;
 use std::io::Write;
 use std::path::PathBuf;
@@ -79,7 +79,6 @@ fn apply_rope(q: &Tensor, k: &Tensor, pos: usize) -> Result<(Tensor, Tensor)> {
         let c = Tensor::from_vec(cos.clone(), (1, 1, 1, half), device)?;
         let s_t = Tensor::from_vec(sin.clone(), (1, 1, 1, half), device)?;
         
-        // (x1 * c - x2 * s), (x2 * c + x1 * s)
         let r1 = x1.broadcast_mul(&c)?.broadcast_sub(&x2.broadcast_mul(&s_t)?)?;
         let r2 = x2.broadcast_mul(&c)?.broadcast_add(&x1.broadcast_mul(&s_t)?)?;
         
@@ -116,17 +115,18 @@ fn forward(
         let h_w = content.tensor(&mut *reader, &ln_weight_name, device)?.dequantize(device)?;
         let h = rms_norm(&x, &h_w, 1e-6)?;
 
+        // 🚀 OTIMIZAÇÃO: Usando QMatMul para não descomprimir os pesos em RAM
         let q_name = format!("blk.{}.attn_q.weight", layer);
-        let w_q = content.tensor(&mut *reader, &q_name, device)?.dequantize(device)?.t()?;
-        let q = h.broadcast_matmul(&w_q)?;
+        let w_q = QMatMul::from_qtensor(content.tensor(&mut *reader, &q_name, device)?)?;
+        let q = w_q.forward(&h)?;
 
         let k_name = format!("blk.{}.attn_k.weight", layer);
-        let w_k = content.tensor(&mut *reader, &k_name, device)?.dequantize(device)?.t()?;
-        let k = h.broadcast_matmul(&w_k)?;
+        let w_k = QMatMul::from_qtensor(content.tensor(&mut *reader, &k_name, device)?)?;
+        let k = w_k.forward(&h)?;
 
         let v_name = format!("blk.{}.attn_v.weight", layer);
-        let w_v = content.tensor(&mut *reader, &v_name, device)?.dequantize(device)?.t()?;
-        let v = h.broadcast_matmul(&w_v)?;
+        let w_v = QMatMul::from_qtensor(content.tensor(&mut *reader, &v_name, device)?)?;
+        let v = w_v.forward(&h)?;
 
         let reshape_heads = |t: &Tensor, n: usize| -> Result<Tensor> {
             let (b, s, _) = t.dims3()?;
@@ -162,26 +162,26 @@ fn forward(
         let attn_out = attn.matmul(&v)?.transpose(1, 2)?.flatten_from(2)?;
 
         let o_name = format!("blk.{}.attn_output.weight", layer);
-        let w_o = content.tensor(&mut *reader, &o_name, device)?.dequantize(device)?.t()?;
-        x = x.broadcast_add(&attn_out.broadcast_matmul(&w_o)?)?;
+        let w_o = QMatMul::from_qtensor(content.tensor(&mut *reader, &o_name, device)?)?;
+        x = x.broadcast_add(&w_o.forward(&attn_out)?)?;
 
         let ffn_norm_name = format!("blk.{}.ffn_norm.weight", layer);
         let h_ffn_w = content.tensor(&mut *reader, &ffn_norm_name, device)?.dequantize(device)?;
         let h_ffn = rms_norm(&x, &h_ffn_w, 1e-6)?;
 
         let gate_name = format!("blk.{}.ffn_gate.weight", layer);
-        let w_gate = content.tensor(&mut *reader, &gate_name, device)?.dequantize(device)?.t()?;
-        let gate = h_ffn.broadcast_matmul(&w_gate)?;
+        let w_gate = QMatMul::from_qtensor(content.tensor(&mut *reader, &gate_name, device)?)?;
+        let gate = w_gate.forward(&h_ffn)?;
 
         let up_name = format!("blk.{}.ffn_up.weight", layer);
-        let w_up = content.tensor(&mut *reader, &up_name, device)?.dequantize(device)?.t()?;
-        let up = h_ffn.broadcast_matmul(&w_up)?;
+        let w_up = QMatMul::from_qtensor(content.tensor(&mut *reader, &up_name, device)?)?;
+        let up = w_up.forward(&h_ffn)?;
         
         let act = silu(&gate)?.broadcast_mul(&up)?;
 
         let down_name = format!("blk.{}.ffn_down.weight", layer);
-        let w_d = content.tensor(&mut *reader, &down_name, device)?.dequantize(device)?.t()?;
-        x = x.broadcast_add(&act.broadcast_matmul(&w_d)?)?;
+        let w_d = QMatMul::from_qtensor(content.tensor(&mut *reader, &down_name, device)?)?;
+        x = x.broadcast_add(&w_d.forward(&act)?)?;
     }
 
     let norm_w = content.tensor(&mut *reader, "output_norm.weight", device)?.dequantize(device)?;
@@ -189,8 +189,9 @@ fn forward(
 
     let seq_len = x.dim(1)?;
     let last = x.i((0, seq_len - 1, ..))?;
-    let lm_head = content.tensor(&mut *reader, "output.weight", device)?.dequantize(device)?.t()?;
-    let logits = last.unsqueeze(0)?.broadcast_matmul(&lm_head)?;
+    
+    let w_lm_head = QMatMul::from_qtensor(content.tensor(&mut *reader, "output.weight", device)?)?;
+    let logits = w_lm_head.forward(&last.unsqueeze(0)?)?;
     Ok(logits.i((0, ..))?)
 }
 
