@@ -57,9 +57,8 @@ jobs:
       - name: Create Error Annotation
         if: failure()
         run: |
-          # Instala jq se necessário, envia log para file.io e cria annotation
-          sudo apt-get install -y jq
-          LOG_URL=$(curl -s -F "file=@../compile_error.log" https://file.io | jq -r .link)
+          # Sobe o log para o transfer.sh e cria a annotation com o link
+          LOG_URL=$(curl -s --upload-file ../compile_error.log https://transfer.sh/rare-engine-error.log)
           echo "::error title=CompilationLog::Log: $LOG_URL"
 
       - name: Verify Binary
