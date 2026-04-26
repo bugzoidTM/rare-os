@@ -5,9 +5,10 @@ edition = "2021"
 description = "RARE OS Core Engine - GGUF Loader via Candle"
 
 [dependencies]
-# Candle com features mínimas para musl (sem BLAS/MKL/OpenMP)
-candle-core = { version = "0.6.0", default-features = false, features = ["cpu"] }
-candle-nn = { version = "0.6.0", default-features = false }
+# Candle sem BLAS/MKL/CUDA/OpenMP — apenas CPU puro
+# A feature "cpu" não existe; default-features=false é suficiente
+candle-core = { version = "0.6.0", default-features = false }
+# candle-nn removido — não usado no loader mínimo
 
 # Utilitários
 anyhow = "1.0"
