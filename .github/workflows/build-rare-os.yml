@@ -18,7 +18,11 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cpio qemu-system-x86 musl-tools git
+          sudo apt-get install -y cpio qemu-system-x86 git \
+            musl-tools musl-dev gcc-x86-64-linux-gnu \
+            clang lld
+          # Confirma que o linker está disponível
+          which musl-gcc && musl-gcc --version
 
       - name: Download Qwen2.5 Model (if needed)
         run: |
