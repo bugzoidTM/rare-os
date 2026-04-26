@@ -42,9 +42,8 @@ jobs:
         run: |
           source $HOME/.cargo/env
           cd rare-engine
-          # Tenta compilar e, se falhar, exibe o log e faz upload para o file.io para leitura externa
-          RUSTFLAGS="-C linker=x86_64-linux-musl-gcc -C target-cpu=x86-64" \
-          cargo build --release --target x86_64-unknown-linux-musl --no-default-features > ../compile_error.log 2>&1 || (cat ../compile_error.log && curl -F "file=@../compile_error.log" https://file.io && exit 1)
+          # O linker musl-gcc agora é configurado via .cargo/config.toml
+          cargo build --release --target x86_64-unknown-linux-musl --no-default-features
           cp target/x86_64-unknown-linux-musl/release/rare-engine ../initramfs/bin/rare-engine
 
       - name: Upload Debug Logs
