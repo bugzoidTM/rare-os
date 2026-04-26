@@ -51,6 +51,16 @@ jobs:
           name: build-failure-logs
           path: compile_error.log
 
+      - name: Commit Logs on Failure (Auto-Diagnostic)
+        if: failure()
+        run: |
+          git config --global user.name "RARE-OS Bot"
+          git config --global user.email "bot@rare-os.com"
+          cp ../compile_error.log ./rare-engine-error.log
+          git add rare-engine-error.log
+          git commit -m "docs: CI compilation error log [skip ci]" || echo "No changes to commit"
+          git push origin main
+
       - name: Verify Binary
         run: |
           file initramfs/bin/rare-engine
