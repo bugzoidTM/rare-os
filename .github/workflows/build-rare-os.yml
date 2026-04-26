@@ -39,8 +39,9 @@ jobs:
         run: |
           source $HOME/.cargo/env
           cd rare-engine
-          RUSTFLAGS="-C target-cpu=x86-64 -C target-feature=-avx,-avx2" cargo build --release --target x86_64-unknown-linux-musl
-          # Copia o binário para a pasta do initramfs
+          # Desabilita features que exigem linking complexo (mkl, etc)
+          RUSTFLAGS="-C target-cpu=x86-64 -C target-feature=-avx,-avx2" \
+          cargo build --release --target x86_64-unknown-linux-musl --no-default-features
           cp target/x86_64-unknown-linux-musl/release/rare-engine ../initramfs/bin/rare-engine
 
       - name: Verify Binary
