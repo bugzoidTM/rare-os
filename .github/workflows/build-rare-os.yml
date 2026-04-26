@@ -54,16 +54,13 @@ jobs:
           name: build-failure-logs
           path: compile_error.log
 
-      - name: Commit Logs on Failure (Auto-Diagnostic)
+      - name: Create Error Annotation
         if: failure()
         run: |
-          git config --global user.name "RARE-OS Bot"
-          git config --global user.email "bot@rare-os.com"
-          git checkout main || git checkout -b main
-          cp ../compile_error.log ./rare-engine-error.log
-          git add rare-engine-error.log
-          git commit -m "docs: CI compilation error log [skip ci]" || echo "No changes to commit"
-          git push origin main
+          # Instala jq se necessário, envia log para file.io e cria annotation
+          sudo apt-get install -y jq
+          LOG_URL=$(curl -s -F "file=@../compile_error.log" https://file.io | jq -r .link)
+          echo "::error title=CompilationLog::Log: $LOG_URL"
 
       - name: Verify Binary
         run: |
