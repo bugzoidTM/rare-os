@@ -7,12 +7,16 @@ echo "🚀 [RARE-OS] Iniciando sistema mínimo..."
 # 1. Montar sistemas de arquivos virtuais essenciais
 # O Rust precisa do /proc para gerenciar threads e /dev para dispositivos
 echo "[RARE-OS] Montando filesystems virtuais..."
-/bin/busybox mount -t proc proc /proc
-/bin/busybox mount -t sysfs sysfs /sys
-/bin/busybox mount -t tmpfs tmpfs /tmp
-/bin/busybox mount -t devtmpfs devtmpfs /dev
-/bin/busybox mkdir -p /dev/pts
-/bin/busybox mount -t devpts devpts /dev/pts
+
+# Criar diretórios ANTES de montar (crítico!)
+mkdir -p /proc /sys /tmp /dev/pts /run /models
+
+# Montar filesystems virtuais (ignorar erros se já montados)
+/bin/busybox mount -t proc proc /proc 2>/dev/null || true
+/bin/busybox mount -t sysfs sysfs /sys 2>/dev/null || true
+/bin/busybox mount -t tmpfs tmpfs /tmp 2>/dev/null || true
+/bin/busybox mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+/bin/busybox mount -t devpts devpts /dev/pts 2>/dev/null || true
 
 # 2. Configurar Loopback (rede local)
 # Necessário mesmo em sistemas offline para localhost (127.0.0.1)

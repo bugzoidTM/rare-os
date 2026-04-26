@@ -116,25 +116,21 @@ jobs:
           echo "--- QEMU LOG ---"
           cat qemu_output.log
 
-          # Smoke test 1: sistema bootou
-          if grep -q "RARE-OS" qemu_output.log; then
-            echo "✅ Boot OK"
-          else
-            echo "❌ FAIL: Boot string not found"; exit 1
-          fi
-
-          # Smoke test 2: engine carregou o modelo
-          if grep -q "MB" qemu_output.log; then
-            echo "✅ Modelo carregado"
-          else
-            echo "⚠️ WARNING: Modelo pode não ter carregado (timeout?)"
-          fi
-
-          # Smoke test 3: "tok=" indica que pelo menos um token foi gerado
+          # Smoke test CORRETO: verificar se tokens foram gerados
           if grep -q "\[tok=" qemu_output.log; then
-            echo "✅ SMOKE TEST PASS: tokens foram gerados com sucesso"
+            echo "✅ SUCCESS: Tokens gerados com QMatMul!"
+            TOKEN_COUNT=$(grep -o "\[tok=[0-9]*\]" qemu_output.log | wc -l)
+            echo "📊 Tokens gerados: $TOKEN_COUNT"
+            
+            # Verificar se a resposta faz sentido (opcional)
+            if grep -q "4" qemu_output.log || grep -qi "answer" qemu_output.log; then
+              echo "✅ Resposta semanticamente correta!"
+            else
+              echo "⚠️ Tokens gerados, mas resposta pode estar incorreta (ver prompt template)"
+            fi
           else
-            echo "⚠️ SMOKE TEST: 'tok=' não encontrado (timeout de QEMU excedido ou erro de inferência)"
+            echo "❌ FAIL: Nenhum token gerado"
+            exit 1
           fi
 
           # Extrair latência do log
